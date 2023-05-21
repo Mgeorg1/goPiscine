@@ -11,18 +11,20 @@ import (
 
 func calcMode(nums []int) int {
 	m := make(map[int]int)
-	max := -100000
+	max := 0
+	mostFreqNum := 0
 	for i := range nums {
 		if _, ok := m[nums[i]]; ok == true {
 			m[nums[i]]++
 		} else {
 			m[nums[i]] = 1
 		}
-		if max < nums[i] {
-			max = nums[i]
+		if max < m[nums[i]] {
+			max = m[nums[i]]
+			mostFreqNum = nums[i]
 		}
 	}
-	return max
+	return mostFreqNum
 }
 
 func calcSD(nums []int, mean float64) float64 {
