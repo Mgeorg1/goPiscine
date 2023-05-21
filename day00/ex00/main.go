@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"math"
 	"os"
@@ -29,12 +30,19 @@ func calcSD(nums []int, mean float64) float64 {
 	var distance float64
 	for i := range nums {
 		distance = mean - float64(nums[i])
-		s += distance * distance
+		s += math.Pow(distance, 2)
 	}
 	return math.Sqrt(distance / float64(len(nums)))
 }
 
 func main() {
+	var fMean, fMedian, fMode, fSD bool
+	flag.BoolVar(&fMean, "mean", false, "calculate Mean")
+	flag.BoolVar(&fMedian, "median", false, "calculate Median")
+	flag.BoolVar(&fMode, "mode", false, "calculate Mode")
+	flag.BoolVar(&fSD, "SD", false, "calculate Standard Deviation")
+	flag.Parse()
+
 	in := bufio.NewScanner(os.Stdin)
 	var nums []int
 	var sum, i float64 = 0, 0
@@ -46,7 +54,7 @@ func main() {
 		}
 		num, err := strconv.Atoi(txt)
 		if err != nil {
-			fmt.Println(err.Error)
+			fmt.Println(err.Error())
 			os.Exit(1)
 		}
 		if num < -100000 || num > 100000 {
@@ -57,8 +65,9 @@ func main() {
 		sum += float64(num)
 		i++
 	}
+
 	mean := sum / float64(len(nums))
-	fmt.Printf("Mean: %f\n", mean)
+	// fmt.Printf("Mean: %f\n", mean)
 	var median float64
 	if len(nums)%2 != 0 {
 		middle := len(nums) / 2
@@ -67,9 +76,27 @@ func main() {
 		middle := len(nums) / 2
 		median = float64(nums[middle]+nums[middle-1]) / 2
 	}
-	fmt.Printf("Median: %f\n", median)
+	// fmt.Printf("Median: %f\n", median)
 	mode := calcMode(nums)
-	fmt.Printf("Mode: %d\n", mode)
+	// fmt.Printf("Mode: %d\n", mode)
 	SD := calcSD(nums, mean)
-	fmt.Printf("SD: %f\n", SD)
+	// fmt.Printf("SD: %f\n", SD)
+	if !fMean && !fMode && !fSD && !fMedian {
+		fmt.Printf("Mean: %f\n", mean)
+		fmt.Printf("Median: %f\n", median)
+		fmt.Printf("Mode: %d\n", mode)
+		fmt.Printf("SD: %f\n", SD)
+	}
+	if fMean {
+		fmt.Printf("Mean: %f\n", mean)
+	}
+	if fMedian {
+		fmt.Printf("Median: %f\n", median)
+	}
+	if fMode {
+		fmt.Printf("Mode: %d\n", mode)
+	}
+	if fSD {
+		fmt.Printf("SD: %f\n", SD)
+	}
 }
