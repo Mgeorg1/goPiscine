@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -47,7 +48,7 @@ func main() {
 
 	in := bufio.NewScanner(os.Stdin)
 	var nums []int
-	var sum, i float64 = 0, 0
+	var sum float64 = 0
 	for in.Scan() {
 		txt := in.Text()
 		if txt == "" {
@@ -65,11 +66,12 @@ func main() {
 		}
 		nums = append(nums, num)
 		sum += float64(num)
-		i++
 	}
 
 	mean := sum / float64(len(nums))
 	// fmt.Printf("Mean: %f\n", mean)
+
+	sort.Ints(nums)
 	var median float64
 	if len(nums)%2 != 0 {
 		middle := len(nums) / 2
