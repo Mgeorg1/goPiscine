@@ -42,7 +42,7 @@ func main() {
 				if filepath.Ext(path) == ext {
 					fmt.Println(path)
 				}
-			} else {
+			} else if *extFlag == "" {
 				fmt.Println(path)
 			}
 		}
