@@ -3,10 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"flag"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
 
@@ -14,24 +14,75 @@ import (
 	"github.com/elastic/go-elasticsearch/v8/esutil"
 )
 
-type Customer struct {
-	ID   int    `json:"id"`
-	Name string `json:"name"`
-	Age  int    `json:"age"`
+type Restaurant struct {
+	ID      int      `json:"id"`
+	Name    string   `json:"name"`
+	Address string   `json:"address"`
+	Phone   string   `json:"phone"`
+	Loc     Location `json:"location"`
+}
+
+type Location struct {
+	Lon float64 `json:"lon"`
+	Lat float64 `json:"lat"`
+}
+
+func parseCsv(filePath string) ([]Restaurant, error) {
+	var ret []Restaurant
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	csvReader := csv.NewReader(file)
+	csvReader.Comma = '\t'
+	data, err := csvReader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, row := range data {
+		var rest Restaurant
+
+		rest.ID, err = strconv.Atoi(row[0])
+		if err != nil {
+			log.Printf("Converting error. Skip row. Column: %s, error: %s", row[0], err)
+			continue
+		}
+		rest.Name = row[1]
+		rest.Address = row[2]
+		rest.Phone = row[3]
+		rest.Loc.Lon, err = strconv.ParseFloat(row[4], 64)
+		if err != nil {
+			log.Printf("Converting error. Skip row. Column: %s, error: %s", row[4], err)
+			continue
+		}
+		rest.Loc.Lat, err = strconv.ParseFloat(row[5], 64)
+		if err != nil {
+			log.Printf("Converting error. Skip row. Column: %s, error: %s", row[5], err)
+			continue
+		}
+
+		ret = append(ret, rest)
+	}
+	log.Printf("Generated data len: %d\n", len(ret))
+	return ret, nil
 }
 
 func main() {
-	var customers []Customer
 
 	log.SetFlags(0)
 	fHost := flag.String("h", "https://localhost:9200", " -h host:port")
 	fCert := flag.String("cacert", "./http_ca.crt", "-cacert ./path to ca certificate")
 	fUser := flag.String("u", "", "-u username")
 	fPassword := flag.String("p", "", "-p password")
+	fData := flag.String("f", "", "-f csv file")
 
 	flag.Parse()
 
-	if *fUser == "" || *fPassword == "" {
+	if *fUser == "" || *fPassword == "" || *fData == "" {
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
@@ -54,23 +105,14 @@ func main() {
 	}
 
 	bulkIndexer, err := esutil.NewBulkIndexer(esutil.BulkIndexerConfig{
-		Index:  "customers",
+		Index:  "restaurants",
 		Client: client,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	names := []string{"Alice", "Ann", "Jhon", "Lisa", "Sophie", "Robert"}
-	for i, n := range names {
-		customers = append(customers, Customer{
-			ID:   i,
-			Name: n,
-			Age:  rand.Intn(100),
-		})
-	}
-
-	res, err := client.Indices.Create("customers")
+	res, err := client.Indices.Create("restaurants")
 	if err != nil {
 		log.Fatalf("Cannot create index: %s\n", err)
 	}
@@ -79,15 +121,20 @@ func main() {
 	}
 	res.Body.Close()
 
-	for _, customer := range customers {
-		data, err := json.Marshal(customer)
+	restaurants, err := parseCsv(*fData)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, rest := range restaurants {
+		data, err := json.Marshal(rest)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		err = bulkIndexer.Add(context.Background(), esutil.BulkIndexerItem{
 			Action:     "index",
-			DocumentID: strconv.Itoa(customer.ID),
+			DocumentID: strconv.Itoa(rest.ID),
 			Body:       bytes.NewReader(data),
 			OnSuccess: func(ctx context.Context, item esutil.BulkIndexerItem, res esutil.BulkIndexerResponseItem) {
 				log.Println("Successful added item")
@@ -110,5 +157,4 @@ func main() {
 	if err := bulkIndexer.Close(context.Background()); err != nil {
 		log.Fatal(err)
 	}
-
 }
