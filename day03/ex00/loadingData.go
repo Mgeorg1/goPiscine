@@ -8,8 +8,6 @@ import (
 	"log"
 	"os"
 	"strconv"
-
-	"github.com/elastic/go-elasticsearch/v8"
 )
 
 func parseCsv(filePath string) ([]types.Place, error) {
@@ -57,7 +55,6 @@ func parseCsv(filePath string) ([]types.Place, error) {
 }
 
 func main() {
-
 	log.SetFlags(0)
 	fHost := flag.String("h", "https://localhost:9200", " -h host:port")
 	fCert := flag.String("cacert", "./http_ca.crt", "-cacert ./path to ca certificate")
@@ -72,24 +69,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	cert, err := os.ReadFile(*fCert)
+	store, err := db.CreateElasticStore(fCert, fHost, fUser, fPassword)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	cfg := elasticsearch.Config{
-		Addresses: []string{*fHost},
-		Username:  *fUser,
-		Password:  *fPassword,
-		CACert:    cert,
-	}
-
-	client, err := elasticsearch.NewClient(cfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	res, err := client.Indices.Create("place")
+	res, err := store.Client.Indices.Create("place")
 	if err != nil {
 		log.Fatalf("Cannot create index: %s\n", err)
 	}
@@ -103,7 +89,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = db.PutPlaces(places, client)
+	err = store.PutPlaces(places)
 	if err != nil {
 		log.Fatal(err)
 	}
