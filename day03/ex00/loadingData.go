@@ -75,20 +75,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	res, err := store.Client.Indices.Create("place")
-	if err != nil {
-		log.Fatalf("Cannot create index: %s\n", err)
-	}
-	if res.IsError() {
-		log.Fatalf("Cannot create index: %s\n", res)
-	}
-	res.Body.Close()
-
 	places, err := parseCsv(*fData)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	store.СreateIndex("place")
 	err = store.PutPlaces(places)
 	if err != nil {
 		log.Fatal(err)

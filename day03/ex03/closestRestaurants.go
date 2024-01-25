@@ -26,7 +26,7 @@ func main() {
 		log.Fatal(err)
 	}
 	server := db.CreateServer(store)
-	http.HandleFunc("/", server.GetPlacesHandler)
+	http.HandleFunc("/api/recommend", server.GetClosestPlacesHandler)
 	err = http.ListenAndServe(":8800", nil)
 	if err != nil {
 		log.Fatal(err)
