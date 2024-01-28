@@ -201,10 +201,10 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func getErrorResp(message string) string {
+func GetErrorResp(message string) []byte {
 	resp := ErrorResponse{Error: message}
 	errorJSON, _ := json.Marshal(resp)
-	return string(errorJSON)
+	return errorJSON
 }
 
 func (server *Server) getPagePlaces(w http.ResponseWriter, r *http.Request) (ResponsePlaces, error) {
@@ -219,7 +219,7 @@ func (server *Server) getPagePlaces(w http.ResponseWriter, r *http.Request) (Res
 	}
 	if err != nil {
 		log.Printf("Error while converting string 'page' value. Error: %s\n", err)
-		http.Error(w, getErrorResp("Error while converting string 'page' value "+err.Error()), http.StatusInternalServerError)
+		WriteErrorJson(w, "Error while converting string 'page' value "+err.Error(), http.StatusInternalServerError)
 		return resp, err
 	}
 	limit := 10
@@ -227,14 +227,14 @@ func (server *Server) getPagePlaces(w http.ResponseWriter, r *http.Request) (Res
 	if offset < 0 {
 		log.Printf("Error while converting string 'page' value. Error: %s\n", err)
 
-		http.Error(w, getErrorResp("offset < 0"), http.StatusBadRequest)
+		WriteErrorJson(w, "offset < 0", http.StatusBadRequest)
 		err = fmt.Errorf("offset for places page < 0")
 		return resp, err
 	}
 	places, hitNum, err := server.store.GetPlaces(limit, page)
 	if err != nil {
 		log.Println(err)
-		http.Error(w, getErrorResp("Places not found"), http.StatusNotFound)
+		WriteErrorJson(w, "Places not found", http.StatusNotFound)
 		return resp, err
 	}
 
@@ -254,7 +254,7 @@ func (server *Server) getPagePlaces(w http.ResponseWriter, r *http.Request) (Res
 	resp.LastPage = (hitNum + limit - 1) / limit
 
 	if page > resp.LastPage {
-		http.Error(w, getErrorResp("Invalid 'page' value "+pageParam), http.StatusBadRequest)
+		WriteErrorJson(w, "Invalid 'page' value "+pageParam, http.StatusBadRequest)
 		return resp, err
 	}
 	return resp, nil
@@ -270,24 +270,29 @@ func (server *Server) GetPlacesHandler(w http.ResponseWriter, r *http.Request) {
 
 	err = tmpl.Execute(w, data)
 	if err != nil {
-		http.Error(w, getErrorResp("Error executing template"+err.Error()), http.StatusInternalServerError)
+		WriteErrorJson(w, "Error executing template"+err.Error(), http.StatusInternalServerError)
 		return
 	}
 }
 
+func WriteErrorJson(w http.ResponseWriter, errorText string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	w.Write(GetErrorResp(errorText))
+}
+
 func WriteJSON(w http.ResponseWriter, response interface{}) {
 	json, err := json.MarshalIndent(response, "", "  ")
+	w.Header().Set("Content-Type", "application/json")
 	if err != nil {
-		http.Error(w, getErrorResp("Error due JSON marhalling: "+err.Error()), http.StatusInternalServerError)
+		WriteErrorJson(w, "Error due JSON marhalling: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	w.Header().Set("Content-Type", "application/json")
 
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(json)
 	if err != nil {
-		http.Error(w, getErrorResp("Error while writing response header: "+err.Error()), http.StatusInternalServerError)
+		WriteErrorJson(w, "Error while writing response header: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -350,18 +355,17 @@ func (server *Server) GetClosestPlaces(lat float64, lon float64) ([]types.Place,
 }
 
 func (server *Server) GetClosestPlacesHandler(w http.ResponseWriter, r *http.Request) {
-
 	latParam := r.URL.Query().Get("lat")
 	lonParam := r.URL.Query().Get("lon")
 
 	lat, err := strconv.ParseFloat(latParam, 64)
 	if err != nil {
-		http.Error(w, getErrorResp(err.Error()+"lat param: "+latParam), http.StatusBadRequest)
+		WriteErrorJson(w, err.Error()+"lat param: "+latParam, http.StatusBadRequest)
 		return
 	}
 	lon, err := strconv.ParseFloat(lonParam, 64)
 	if err != nil {
-		http.Error(w, getErrorResp(err.Error()+"lon param: "+lonParam), http.StatusBadRequest)
+		WriteErrorJson(w, err.Error()+"lon param: "+lonParam, http.StatusBadRequest)
 		return
 	}
 
@@ -369,7 +373,7 @@ func (server *Server) GetClosestPlacesHandler(w http.ResponseWriter, r *http.Req
 
 	if err != nil {
 		log.Printf("error when getting closes places %s", err)
-		http.Error(w, getErrorResp(err.Error()), http.StatusInternalServerError)
+		WriteErrorJson(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
