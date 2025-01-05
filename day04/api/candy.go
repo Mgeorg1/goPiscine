@@ -1,5 +1,9 @@
 package api
 
+/*
+#include "cow.h"
+*/
+import "C"
 import (
 	"encoding/json"
 	"fmt"
@@ -51,7 +55,24 @@ var (
 	}
 )
 
-func BuyCandyHandler(w http.ResponseWriter, r *http.Request) {
+type thanksInterface interface {
+	thanks(req *BuyCandyRequest) string
+}
+
+type simpleThanks struct{}
+
+func (s simpleThanks) thanks(req *BuyCandyRequest) string {
+	return fmt.Sprintf("Thank you for buying %d %s candy!", req.CandyCount, req.CandyType)
+}
+
+type cow struct{}
+
+func (c cow) thanks(req *BuyCandyRequest) string {
+	thanks := fmt.Sprintf("Thank you for buying %d %s candy!", req.CandyCount, req.CandyType)
+	return fmt.Sprintf("Thank you for buying %d %s candy! %s", req.CandyCount, req.CandyType, C.GoString(C.ask_cow(C.CString(thanks))))
+}
+
+func handleBuyCandyRequest(w http.ResponseWriter, r *http.Request, thanks thanksInterface) {
 	var req BuyCandyRequest
 	err := json.NewDecoder(r.Body).Decode(&req)
 	if err != nil {
@@ -82,7 +103,7 @@ func BuyCandyHandler(w http.ResponseWriter, r *http.Request) {
 		change := req.Money - candyPriceSum
 		resp := BuyCandyResponse{
 			Change: change,
-			Thanks: fmt.Sprintf("Thanks for buying %d %s candy", req.CandyCount, req.CandyType),
+			Thanks: thanks.thanks(&req),
 		}
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(resp)
@@ -92,4 +113,12 @@ func BuyCandyHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, fmt.Errorf("you need %d more money", candyPriceSum-req.Money))
 		return
 	}
+}
+
+func BuyCandyHandler(w http.ResponseWriter, r *http.Request) {
+	handleBuyCandyRequest(w, r, simpleThanks{})
+}
+
+func BuyCandyHandlerCow(w http.ResponseWriter, r *http.Request) {
+	handleBuyCandyRequest(w, r, cow{})
 }
